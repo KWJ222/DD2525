@@ -11,26 +11,32 @@ let
                 let val (profile1, agent1, pid1) = profile1Data
                     val (profile2, agent2, pid2) = profile2Data
                     
-                    (* Run discovery agents *)
-                    val (pref1, maybeProfile1) = agent1 profile2
-                    val (pref2, maybeProfile2) = agent2 profile1
-                    
-                    (* Compute secure match result *)
-                    val secureMatch = pref1 andalso pref2
-                    
-                    (* Declassify everything to empty level *)
-                    (* Using syntax from the documentation example *)
-                    val declassifiedMatch = declassify (secureMatch, authority, {})
-                    val profile1ForPid2 = declassify (maybeProfile1, authority, {})
-                    val profile2ForPid1 = declassify (maybeProfile2, authority, {})
-                in
-                    (* Only notify if there's mutual interest *)
-                    if declassifiedMatch then
-                        (send (pid1, ("NEWMATCH", profile2ForPid1));
-                         send (pid2, ("NEWMATCH", profile1ForPid2));
-                         printString "Match found!")
-                    else
-                        printString "No mutual interest detected"
+
+                    val z =
+                        let pini authority
+
+                        (* Run discovery agents *)
+                        val (pref1, maybeProfile1) = agent1 profile2
+                        val (pref2, maybeProfile2) = agent2 profile1
+
+                        (* Compute secure match result *)
+                        val secureMatch = pref1 andalso pref2
+
+                        (* Declassify everything to empty level *)
+                        (* Using syntax from the documentation example *)
+                        val declassifiedMatch = declassify (secureMatch, authority, `{}`)
+                        val profile1ForPid2 = declassify (maybeProfile1, authority, `{}`)
+                        val profile2ForPid1 = declassify (maybeProfile2, authority, `{}`)
+                    in
+                        (* Only notify if there's mutual interest *)
+                        if declassifiedMatch then
+                            (send (pid1, ("NEWMATCH", profile2ForPid1));
+                             send (pid2, ("NEWMATCH", profile1ForPid2));
+                             printString "Match found!")
+                        else
+                            printString "No mutual interest detected"
+                    end
+                in z
                 end
             
             (* Server main loop with profiles as parameter *)
