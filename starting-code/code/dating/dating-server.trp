@@ -1,92 +1,122 @@
-(* Dating server with declassification to empty level *)
+(* Dating Server with Information Flow Control *)
 
 import lists
 
 let 
-    (* Server state - use a function with closure instead of ref *)
+    (* Server factory function that creates a server with initial profiles *)
     fun makeServer initialProfiles =
         let 
-            (* Match two profiles and notify if there's mutual interest *)
+            (* 
+             * matchProfiles: Core matching logic with IFC
+             * Takes two profile data tuples and determines if they match
+             * while maintaining security boundaries
+             *)
             fun matchProfiles (profile1Data, profile2Data) =
                 let 
+                    (* Extract components from profile data *)
                     val (profile1, agent1, pid1) = profile1Data
                     val (profile2, agent2, pid2) = profile2Data
                     
+                    (* Extract names for logging - these are public information *)
+                    val (_, name1, _, _, _) = profile1
+                    val (_, name2, _, _, _) = profile2
+                    
+                    val _ = printString ("Testing match between " ^ name1 ^ " and " ^ name2)
                 in 
-                    let
-                        (* Run discovery agents *)
+                    (* 
+                     * SECURITY: Protected computation block where matching decisions occur
+                     * This is where security-sensitive computations take place
+                     *)
+                    let pini authority
+                        (* Run both agent functions in protected context *)
                         val (pref1, maybeProfile1) = agent1 profile2
                         val (pref2, maybeProfile2) = agent2 profile1
-
-                        (* Compute secure match result *)
+                        
+                        (* Calculate match result while preserving labels *)
                         val secureMatch = pref1 andalso pref2
-
-                        (* Declassify everything to empty level *)
-                        (* Using syntax from the documentation example *)
-
-                        val declassifiedMatch = declassify (secureMatch, authority, `{}`)
-                        val profile1ForPid2 = declassify (maybeProfile1, authority, `{}`)
-                        val profile2ForPid1 = declassify (maybeProfile2, authority, `{}`)
                     in
-                        (* Only notify if there's mutual interest *)
-                        if declassifiedMatch then (
-                            send (pid1, ("NEWMATCH", profile2ForPid1));
-                            send (pid2, ("NEWMATCH", profile1ForPid2));
-                            printString ("Match found!");
-                            ()
-                        ) 
-                        else (
-                            printString ("No mutual interest detected");
-                            ()
-                        )
+                        let
+                            (* 
+                             * SECURITY: Controlled declassification of match results
+                             * Only the server has authority to declassify this information
+                             *)
+                            val declassifiedMatch = declassify (secureMatch, authority, `{}`)
+                            
+                            (* 
+                             * SECURITY: Declassify only the filtered profile versions
+                             * Each agent controls what information is shared about its profile
+                             *)
+                            val profile1ForPid2 = declassify (maybeProfile1, authority, `{}`)
+                            val profile2ForPid1 = declassify (maybeProfile2, authority, `{}`)
+                        in
+                            (* Only notify parties if there's a mutual match *)
+                            if declassifiedMatch then (
+                                (* SECURITY: Send only declassified profiles to matched users *)
+                                send (pid1, ("NEWMATCH", profile2ForPid1));
+                                send (pid2, ("NEWMATCH", profile1ForPid2));
+                                printString ("Match found between " ^ name1 ^ " and " ^ name2)
+                            ) 
+                            else
+                                printString ("No match between " ^ name1 ^ " and " ^ name2)
+                        end
                     end
                 end
             
-            (* Server main loop with profiles as parameter *)
+            (* 
+             * serverLoop: Main server event loop
+             * Handles incoming requests and maintains profile database
+             *)
             fun serverLoop profiles = 
-            
                 receive [
+                    (* Handle connection test requests *)
+                    hn ("CONNECT_TEST", clientPid) =>
+                        (printString "Connection test received";
+                         send(clientPid, ("CONNECTION_OK", "Server connected"));
+                         serverLoop profiles),
+                         
+                    (* Handle new profile submissions *)
                     hn ("NEWPROFILE", data) =>
                         let
-                            val _ = printString "New profile received"
+                            val (profile, _, pid) = data
+                            val (_, name, _, _, _) = profile
+                            val _ = printString ("Profile received from: " ^ name)
                             
-                            (* Match with existing profiles *)
+                            (* Test the new profile against all existing profiles *)
                             fun matchWith [] = ()
-                                | matchWith (p::ps) = (
-                                    matchProfiles (data, p);
-                                    matchWith ps
-                                    )
+                              | matchWith (p::ps) = (
+                                  matchProfiles (data, p);
+                                  matchWith ps
+                                )
                             val _ = matchWith profiles
-
                         in
-                            (* Continue with updated profiles *)
+                            (* Add the new profile to our database and continue *)
                             serverLoop (data :: profiles)
                         end
                     ]
         in
-            (* Return the server function *)
+            (* Return the server function that can be spawned *)
             fn () => serverLoop initialProfiles
         end
     
-    (* Main function *)
+    (* Server function that can be registered with the system *)
+    fun server () =
+        (makeServer []) ()
+        
+    (* Main function that initializes the server and contacts dispatcher *)
     fun main () =       
-        let val thisNode = node (self ())
-
-            val dad_prof = (`{}`, "dad", 23, "male", [])
-            val mom_prof = (`{}`, "mom", 23, "female", [])
-
-            fun acceptAll other = (true, other)
-
-            val serverFun = makeServer []
+        let 
+            val thisNode = node (self())
             val _ = printString ("Running node with identifier: " ^ thisNode)
-            val _ = register ("datingServer", spawn serverFun, authority)
-        in  
-
-
-            send (whereis ("@dispatcher", "dispatcher"), ("DISPATCH", thisNode));
             
-            send (whereis (thisNode, "datingServer"), ("NEWPROFILE", (dad_prof, acceptAll, self())));
-            send (whereis (thisNode, "datingServer"), ("NEWPROFILE", (mom_prof, acceptAll, self())));
+            (* Register the server with the system *)
+            val _ = register ("datingServer", spawn server, authority)
+            val _ = printString "Server registered"
+            
+            (* Connect to dispatcher for testing *)
+            val _ = printString "Contacting dispatcher to send test clients..."
+            val _ = send (whereis ("@dispatcher", "dispatcher"), ("DISPATCH", thisNode))
+            val _ = printString "Dispatcher contacted, waiting for clients..."
+        in
             ()
         end
 in
