@@ -1,0 +1,92 @@
+(* Benign client - Bob *)
+
+import lists
+
+let 
+    (* Create profile with proper security labels *)
+    fun createProfile() =
+        let val bobLevel = label("bob", {})  (* Level value with bottom label *)
+            val name = label("Bob", {bob})
+            val year = label(1990, {bob})
+            val gender = label(false, {bob}) (* male *)
+            val interests = label(["sports", "hiking"], {bob})
+            
+            (* Profile structure must be (lev, name, year, gender, interests) *)
+            val profile = (bobLevel, name, year, gender, interests)
+        in 
+            profile
+        end
+    
+    (* Discovery agent that follows protocol specifications *)
+    fun agent(otherProfile) =
+        let val (otherLevel, otherName, otherYear, otherGender, otherInterests) = otherProfile
+            val otherLevelValue = unlabel otherLevel
+            val otherLevelSet = {otherLevelValue}
+            
+            (* Bob prefers females *)
+            val preference = 
+                let val rawPref = unlabel otherGender (* True means female *)
+                in
+                    authority {bob} 
+                        declassify(label(rawPref, {bob}), otherLevelSet)
+                end
+            
+            (* Create profile to share if there's a match *)
+            val sharedProfile = 
+                if unlabel preference then
+                    let val sharedLev = label("bob", otherLevelSet)  (* Labeled for other party *)
+                        val sharedName = 
+                            authority {bob} 
+                                declassify(name, otherLevelSet)
+                        val sharedYear = 
+                            authority {bob} 
+                                declassify(year, otherLevelSet)
+                        val sharedGender = 
+                            authority {bob} 
+                                declassify(gender, otherLevelSet)
+                        val sharedInterests = 
+                            authority {bob} 
+                                declassify(interests, otherLevelSet)
+                    in
+                        (sharedLev, sharedName, sharedYear, sharedGender, sharedInterests)
+                    end
+                else
+                    ()
+        in
+            (preference, sharedProfile)
+        end
+    
+    (* Main function *)
+    fun main() =
+        let val _ = printString "Starting Bob client"
+            val serverPid = whereis ("@datingServer", "datingServer")
+            val profile = createProfile()
+            val selfPid = self()
+            
+            (* Send profile to server *)
+            val _ = send(serverPid, ("NEWPROFILE", (profile, agent, selfPid)))
+            val _ = printString "Profile sent to server"
+            
+            (* Handle incoming matches *)
+            fun waitForMatches() =
+                let val _ = receive[hn ("NEWMATCH", matchProfile) =>
+                                      (printString "Match received!";
+                                       case matchProfile of
+                                           (matchLev, matchName, matchYear, matchGender, matchInterests) =>
+                                               let val genderStr = if unlabel matchGender then "female" else "male"
+                                                   val interestsStr = String.concatWith ", " (unlabel matchInterests)
+                                               in
+                                                   printString ("Match details: " ^ unlabel matchName ^ 
+                                                                ", born " ^ Int.toString (unlabel matchYear) ^ 
+                                                                ", " ^ genderStr ^ 
+                                                                ", interests: " ^ interestsStr)
+                                               end
+                                         | _ => printString "Invalid match profile format")]
+                in waitForMatches()
+                end
+        in
+            waitForMatches()
+        end
+in
+    main()
+end
