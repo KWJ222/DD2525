@@ -9,3 +9,7 @@ alice-client:
 bob-client:
 	$(TROUPE)/bin/troupec bob-client.trp -o ./out/bob-client.js
 	node $(TROUPE)/rt/built/troupe.js -f=./out/bob-client.js --id=../ids/id-bob.json --trustmap=../trustmaps/client.json
+
+malice-client:
+	$(TROUPE)/bin/troupec malice-client.trp -o ./out/malice-client.js
+	node $(TROUPE)/rt/built/troupe.js -f=./out/malice-client.js --id=../ids/id-malice.json --trustmap=../trustmaps/client.json

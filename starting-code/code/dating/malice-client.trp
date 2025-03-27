@@ -1,0 +1,30 @@
+import lists 
+
+let
+    val malice_dudette = (`{malices}`,"Malice", 2001, true, ["stuff"])
+
+
+    fun malice_func profile = 
+        let pini authority
+            val (label, name, age, gender, interest) = profile
+            
+            (* 
+             * TODO 
+             * TODO 
+             *
+             *  This Codes gets : 
+             *  Runtime error in thread d48f440a-cfc1-4045-a4d1-a0e4d0d51e97@{}%{}
+             *  >> Not sufficient authority in getStdout
+             *  | Provided autohrity level {}
+             *  | Required authority level {#TOP}
+             *)
+
+            val _ = printString("label is " ^ name)
+
+        in
+            (true, profile)
+        end
+
+in
+    send (whereis ("QmeWAJgPipvFq9CMr6turCvw1J5a2YVxr2Pmag4RhGhnN5", "datingServer"), ("NEWPROFILE", (malice_dudette, malice_func, self())))
+end

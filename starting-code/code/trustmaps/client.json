@@ -1,1 +1,3 @@
-[{"id":"Qme4G6cm2KKQwxYZM8kYYVR8PmeuV6hNjKQEmVdQWK2Ywh","level":"bob"},{"id":"QmesyBsNDWY4rsEEppoHTYRZc6w1eiqn2pt6SE6BstzJeu","level":"alice"}]
+[{"id":"Qme4G6cm2KKQwxYZM8kYYVR8PmeuV6hNjKQEmVdQWK2Ywh","level":"bob"},
+{"id":"QmesyBsNDWY4rsEEppoHTYRZc6w1eiqn2pt6SE6BstzJeu","level":"alice"},
+{"id":"QmVdSEpECbM4J5kWj8VRMSMDw6b4ANFtBx4eVjdM3ZUGEc","level":"malice"}]
