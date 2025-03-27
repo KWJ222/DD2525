@@ -1,92 +1,24 @@
-(* Benign client - Alice *)
+import lists 
 
-import lists
+let
+    val alice_dudette = (`{alices}`,"Alice", 2001, true, ["stuff"])
 
-let 
-    (* Create profile with proper security labels *)
-    fun createProfile() =
-        let val aliceLevel = label("alice", {})  (* Level value with bottom label *)
-            val name = label("Alice", {alice})
-            val year = label(1995, {alice})
-            val gender = label(true, {alice}) (* female *)
-            val interests = label(["hiking", "music"], {alice})
-            
-            (* Profile structure must be (lev, name, year, gender, interests) *)
-            val profile = (aliceLevel, name, year, gender, interests)
-        in 
-            profile
-        end
-    
-    (* Discovery agent that follows protocol specifications *)
-    fun agent(otherProfile) =
-        let val (otherLevel, otherName, otherYear, otherGender, otherInterests) = otherProfile
-            val otherLevelValue = unlabel otherLevel
-            val otherLevelSet = {otherLevelValue}
-            
-            (* Alice prefers males *)
-            val preference = 
-                let val rawPref = not (unlabel otherGender)  (* Not true means male *)
-                in
-                    authority {alice} 
-                        declassify(label(rawPref, {alice}), otherLevelSet)
-                end
-            
-            (* Create profile to share if there's a match *)
-            val sharedProfile = 
-                if unlabel preference then
-                    let val sharedLev = label("alice", otherLevelSet)  (* Labeled for other party *)
-                        val sharedName = 
-                            authority {alice} 
-                                declassify(name, otherLevelSet)
-                        val sharedYear = 
-                            authority {alice} 
-                                declassify(year, otherLevelSet)
-                        val sharedGender = 
-                            authority {alice} 
-                                declassify(gender, otherLevelSet)
-                        val sharedInterests = 
-                            authority {alice} 
-                                declassify(interests, otherLevelSet)
-                    in
-                        (sharedLev, sharedName, sharedYear, sharedGender, sharedInterests)
-                    end
-                else
-                    ()
+    fun abs x = if x < 0 then 
+        (-x) 
+    else 
+        (x) 
+
+    fun alice_func profile = 
+        let
+            val (_, _, age, gender, interest) = profile
+            val (_, _, my_age, _, my_interest) = alice_dudette
         in
-            (preference, sharedProfile)
+            if gender = false andalso abs(age - my_age) < 6 andalso interest = my_interest then 
+                (true, profile)
+            else 
+                (false, ())
         end
-    
-    (* Main function *)
-    fun main() =
-        let val _ = printString "Starting Alice client"
-            val serverPid = whereis ("@datingServer", "datingServer")
-            val profile = createProfile()
-            val selfPid = self()
-            
-            (* Send profile to server *)
-            val _ = send(serverPid, ("NEWPROFILE", (profile, agent, selfPid)))
-            val _ = printString "Profile sent to server"
-            
-            (* Handle incoming matches *)
-            fun waitForMatches() =
-                let val _ = receive[hn ("NEWMATCH", matchProfile) =>
-                                      (printString "Match received!";
-                                       case matchProfile of
-                                           (matchLev, matchName, matchYear, matchGender, matchInterests) =>
-                                               let val genderStr = if unlabel matchGender then "female" else "male"
-                                                   val interestsStr = String.concatWith ", " (unlabel matchInterests)
-                                               in
-                                                   printString ("Match details: " ^ unlabel matchName ^ 
-                                                                ", born " ^ Int.toString (unlabel matchYear) ^ 
-                                                                ", " ^ genderStr ^ 
-                                                                ", interests: " ^ interestsStr)
-                                               end
-                                         | _ => printString "Invalid match profile format")]
-                in waitForMatches()
-                end
-        in
-            waitForMatches()
-        end
+
 in
-    main()
+    send (whereis ("QmeWAJgPipvFq9CMr6turCvw1J5a2YVxr2Pmag4RhGhnN5", "datingServer"), ("NEWPROFILE", (alice_dudette, alice_func, self())))
 end
